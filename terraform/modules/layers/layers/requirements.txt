@@ -1,0 +1,5 @@
+pandas
+boto3
+xlrd
+configobj
+prometheus_client

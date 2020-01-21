@@ -1,0 +1,26 @@
+notifiers:
+  - name: ce-slack-notification
+    type: slack
+    uid: CESlackNotification
+    org_id: 1
+    send_reminder: true
+    frequency: 1h
+    disable_resolve_message: false
+    settings:
+      recipient: "XXX"
+      token: "xxxx"
+      uploadImage: false
+      url: https://hooks.slack.com
+
+  - name: cur-slack-notification
+    type: slack
+    uid: CURSlackNotification
+    org_id: 1
+    send_reminder: true
+    frequency: 1h
+    disable_resolve_message: false
+    settings:
+      recipient: "XXX"
+      token: "xxxx"
+      uploadImage: false
+      url: https://hooks.slack.com

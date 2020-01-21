@@ -1,0 +1,17 @@
+.idea/**
+.idea/*.xml
+.idea
+**/.terraform/*
+crash.log
+*.tfstate.*
+terraform/input.tfvars
+terraform/terraform.tfstate
+.idea/*configs.zip
+costbuddy_lambda_function.zip
+terraform.tfstate.backup
+*.tf.bk
+terraform/modules/layers/layers/python/**
+*.tfstate
+*.lock.info
+terraform/terraform.tfstate.d
+.DS_Store

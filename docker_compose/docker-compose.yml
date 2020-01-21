@@ -1,0 +1,68 @@
+version: '3.7'
+
+volumes:
+    prometheus_data:
+      driver_opts:
+        type: none
+        device: /data/prometheus_data
+        o: bind
+    grafana_data:
+      driver_opts:
+        type: none
+        device: /data/grafana_data
+        o: bind
+
+networks:
+  front-tier:
+    driver: bridge
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus_server
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - 9090:9090
+    networks:
+      - front-tier
+    restart: unless-stopped
+    labels:
+      org.label-schema.group: "monitoring"
+
+  pushgateway:
+    image: prom/pushgateway:latest
+    container_name: pushgateway
+    restart: unless-stopped
+    ports:
+      - 9091:9091
+    networks:
+      - front-tier
+    labels:
+      org.label-schema.group: "monitoring"
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    user: "104" #https://grafana.com/docs/grafana/latest/installation/docker/#user-id-changes
+    depends_on:
+      - prometheus
+    ports:
+      - 80:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+    env_file:
+      - ./grafana/config.monitoring
+    networks:
+      - front-tier
+    restart: always
+    labels:
+      org.label-schema.group: "monitoring"
+
