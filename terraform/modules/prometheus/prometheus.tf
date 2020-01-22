@@ -39,9 +39,9 @@ data "template_file" "user_data" {
   count    = var.parent ? 1 : 0
   template = file("./modules/prometheus/userdata.tpl")
   vars = {
-    parent_account         = var.parent_account
-    docker_compose_version = var.docker_compose_version
-    md5                    = aws_s3_bucket_object.costbuddy_artifacts_object[0].etag
+    parent_account          = var.parent_account
+    docker_compose_version  = var.docker_compose_version
+    md5                     = aws_s3_bucket_object.costbuddy_artifacts_object[0].etag
     costbuddy_output_bucket = var.costbuddy_output_bucket
   }
 }
@@ -333,9 +333,9 @@ resource "aws_ebs_volume" "promethues-disk" {
 
 # Attaches the EBS volume to the Prometheus server
 resource "aws_volume_attachment" "attach-prometheus-disk" {
-  count       = var.parent ? 1 : 0
+  count        = var.parent ? 1 : 0
   force_detach = true
-  device_name = var.device_mount_path
-  volume_id   = aws_ebs_volume.promethues-disk[0].id
-  instance_id = aws_instance.prometheus[0].id
+  device_name  = var.device_mount_path
+  volume_id    = aws_ebs_volume.promethues-disk[0].id
+  instance_id  = aws_instance.prometheus[0].id
 }

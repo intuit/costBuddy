@@ -29,20 +29,22 @@ Requirements
 ------------
 
 - [Terraform](https://www.terraform.io/downloads.html) 0.12+
-- [Python](https://www.python.org/downloads) 3.7+
+- [Python](https://www.python.org/downloads) 3.7
 
 Pre-requisites 
 ------------
 
 1. Clone GitHub repo 
    ``` git clone https://github.com/intuit/costBuddy.git```
-2. Update the AWS credential file with Root user access.
+2. Update the AWS credential file with Root user access. Refer the below AWS documentation to create a user and generate Access Keys.
+   https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html
+   https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
 3. Per Account monthly budget information needs to be updated with proper information of all accounts and owners details in the file: `costBuddy/src/conf/input/bills.xlsx` 
 4. Install and verify the Terraform version.
 Verify :  
-```bash
-terraform version 
-```
+    ```bash
+    terraform version 
+    ```
 5. VPC needs to be present in the parent account where you want to set up cost buddy (You can use default VPC which comes with the AWS account by default)
 6. Public(ingress) and Private(egress) subnets should be available.
    use below AWS documentation to create subnets
@@ -51,14 +53,17 @@ terraform version
    If the user doesn't create/provide key_pair PEM file, costBuddy will use the user's id_rsa.pub key by default.
 8. If providing Bastion SG in InputVar file then the user should have ssh access to a bastion host in order to login to costBuddy EC2 instance.
 9. Make a copy of `costBuddy/terraform/input.tfvars.example` to `costBuddy/terraform/input.tfvars`.
-10. Update the information mentioned below in input.tfvars file.
-11. The user has to enable CostExplorer by following the below link.
+10. Update the information mentioned below in `input.tfvars` file.
+11. The user has to **enable CostExplorer** by following the below link.
     https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/ce-enable.html
     
     ```Note: After enabling CE, it may take up to 24hours for AWS to start capturing your AWS account cost data, hence costBuddy may not show the data until CE data is available in AWS account```
+12. An AWS Account with basic configuration and basic knowledge in AWS is required.
  
 
-# Configuration
+# Configuring Input.tfvars file
+The `input.tfvars` file used to provide input to the terraform is the configuration file to the costBuddy. It accepts the following parameters.
+
 1. `account_ids`:  Provide one parent account ID and multiple comma-separated child accounts from where the user wants to fetch AWS account cost.
 
 Example : 
@@ -72,26 +77,31 @@ Parent account definition :
 > Lambda, ec2 instance ( in EC2, it will have Prometheus gateway docker container, Prometheus UI docker container, Grafana container docker), lambda scheduler, state function scheduler, Output S3 bucket, few IAM roles.
 
 Child accounts definition: 
-> There can be multiple AWS accounts from where the user wants to fetch Cost information via parent account costBuddy setup. These child accounts will have only one IAM role which will be assumed by the parent account lambda IAM role.
+> There can be multiple AWS accounts from where the user wants to fetch Cost information via parent account costBuddy setup. These child accounts will have only one IAM role which will be assumed by the parent account lambda IAM role. Leave it as an empty list if there are no child accounts. ([])
 
-2. `key_pair` : < optional > if empty then costBuddy will pickup user’s default id_rsa , otherwise provide AWS key_pair file name without .pem extension.
+2. `key_pair` : **< optional >** if empty then costBuddy will pickup user’s default id_rsa , otherwise provide AWS key_pair file name without .pem extension.
+
+    Refer the following AWS documentation to create a new Keypair.
+    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html
 
 Example : 
 > key_pair = “” (in case user wants to use his/her default id_rsa.pub key)
 
 or
-> key_pair = abc (user should have this pem file if wants to login to EC2 instance)
+> key_pair = abc (user should have this pem file if wants to login to EC2 instance for troubleshooting purpose)
 
 3. `region`: AWS region in where CostBuddy will be deployed.
 
 Example : 
 >region = "us-west-2"
 
-4. `bastion_security_group`: < optional > In case if the access to the instance is restricted through a bastion host, provide the security group ID to be whitelisted in the EC2 instance. 
+4. `bastion_security_group`: **< optional >** In case if the access to the instance is restricted through a bastion host, provide the security group ID to be whitelisted in the EC2 instance. 
 
 Example:
 >bastion_security_group = ["sg-abc”]
-5. `cidr_admin_whitelist` :  Accepts lists of Subnet ranges in order to access Grafana and Prometheus UI. this CIDR range will be added in EC2 SG inbound rule for port 22 (SSH) ,9091 (prometheus gateway ),  (9090 (prometheus UI) ,80 (grafana UI) . 
+5. `cidr_admin_whitelist`:  Accepts lists of CIDR in order to access Grafana and Prometheus UI. This CIDR range will be added in EC2 SG inbound rule for port 22 (SSH), 9091 (Prometheus gateway ),  (9090 (Prometheus UI), 80 (Grafana UI). This will have your public IP address or your organization’s Public IP address ranges.
+
+Access to costBuddy application will be restricted and only these IP ranges will be whitelisted.
 
 Example :
 >cidr_admin_whitelist = [
@@ -102,6 +112,10 @@ Example :
                         “x.x.x.x/32"
                     ]
 
+Use the following URL to get the public IP address of a system.
+   ```bash 
+   curl http://checkip.amazonaws.com
+   ``` 
 
 6. `costbuddy_zone_name` :  Provide route53 valid existing zone. This zone is required to access grafana/prometheus UI. Incase of new hosted zones, set `hosted_zone_name_exists` to `false`.
 
@@ -109,7 +123,7 @@ Example :
 > costbuddy_zone_name=“costbuddy.intuit.com”
 
 
-7. `hosted_zone_name_exists` : (Default is false) Does not create a new hosted zone when set to `true`, Incase of new hosted zones, set to `false`.
+7. `hosted_zone_name_exists` : **(Default is false)** Does not create a new hosted zone when set to `true`, Incase of new hosted zones, set to `false`.
 
 Example : 
 > hosted_zone_name_exists=false
@@ -126,7 +140,7 @@ Grafana UI will be accessible via this url `http://<www_domain_name>.<costbuddy_
 Example :
 > public_subnet_id=“subnet-abc”
 
-10. `private_subnet_id`: This param is important to create Lambda under private subnet so that lambda can use NAT g/w to access AWS resources like EC2, Cost Explore API, S3 etc), please go through below AWS document for more info.
+10. `private_subnet_id`: This parameter is important to create Lambda under private subnet so that lambda can use NAT g/w to access AWS resources like EC2, Cost Explore API, S3 etc), please go through below AWS document for more info.
 > https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/
 
 Example :
@@ -142,9 +156,9 @@ Example :
 Example : 
 >prometheus_push_gw_port=“”
 
-
-
 13. `costbuddy_output_bucket`: A unique S3 bucket name, costBuddy will create S3 bucket with this name with the parent account appended at the end.
+
+    The bucket name can be between 3 and 63 characters long, and can contain only lower-case characters, numbers, periods, and dashes. Each label in the bucket name must start with a lowercase letter or number. The bucket name cannot contain underscores, end with a dash, have consecutive periods, or use dashes adjacent to periods.
 
 Example :
 >costbuddy-output-bucket = “costbuddy-output-bucket”
@@ -157,7 +171,7 @@ costBuddy will create S3 bucket  “costbuddy-output-bucket-<parent_account_name
 Example: 
 > costbuddy_mode = "CE"
 
-15. `tags`: optional param to add the tag into all the costBuddy resources to keep track.
+15. `tags`: **< optional >** Parameter to add the tag into all the costBuddy resources to keep track.
 
 Example : 
 >tags = {
@@ -175,18 +189,22 @@ CostBuddy has two phases of deployments. Parent account deployment which deploys
 1. Clone the GitHub repo in your local computer (never mind if done already).
    ```bash 
    git clone https://github.com/intuit/costBuddy.git 
+   ```
    
+2. Copy the example configuration file and modify the parameters. Refer `Configuration` section above.
+   ```bash
+   cp costBuddy/terraform/input.tfvars.example costBuddy/terraform/input.tfvars
    ```
 
-2. Initialize Terraform. It will initialize all terraform modules/plugins.
+3. Initialize Terraform. It will initialize all terraform modules/plugins.
    go to `costBuddy/terraform/` directory and run below command
-```bash
-cd costBuddy/terraform/
-terraform init
-```
+   ```bash
+   cd costBuddy/terraform/
+   terraform init
+   ```
 
-```bash 
-Expected Output: It will create .terraform directory in costBuddy/terraform/  location and command output should look like below
+   ```bash 
+   Expected Output: It will create .terraform directory in costBuddy/terraform/  location and command output should look like below
               Initializing modules...
             - costbuddy_iam in modules/iam
             - costbuddy_lambda in modules/lambda
@@ -199,80 +217,84 @@ Expected Output: It will create .terraform directory in costBuddy/terraform/  lo
             * provider.local: version = "~> 1.4"
             * provider.template: version = "~> 2.1"
             Terraform has been successfully initialized!
-```
+    ```
 
-3. Update the root/power access STS credentials in `~/.aws/credential` file or export your AWS keys as bash environment variables `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY`.
+4. Update the root/power access STS credentials in `~/.aws/credential` file or export your AWS keys as bash environment variables `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY`.
+
+   Refer the below AWS documentation to create user credentials.
+   https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html
+   https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
 
       if not updated credentials in `~/.aws/credential` then chose below option
    ```bash
         export AWS_ACCESS_KEY_ID="XXXXXXXXXXXXXXXXX"
         export AWS_SECRET_ACCESS_KEY="XXXXXXXXXXXXXXXXX"
    ```
-    or 
+    **or** 
 
     if updated credentials in `~/.aws/credential` then chose below option
     ```bash
     export AWS_PROFILE="XXXXXX"
     ```
 
-4. Run planner command under `costBuddy/terraform` directory.
+5. Run planner command under `costBuddy/terraform` directory.
 
-```bash
-python3 terraform_wrapper.py plan -var-file=input.tfvars
-```
+   ```bash
+   python3 terraform_wrapper.py plan -var-file=input.tfvars
+   ```
 
-```bash
-This command will generate a preview of all the actions which terraform is going to execute.
-   Expected Output: This command will be giving output something like below
+   ```bash
+   This command will generate a preview of all the actions which terraform is going to execute.
+      Expected Output: This command will be giving output something like below
             Plan: 36 to add, 0 to change, 0 to destroy.
             ------------------------------------------------------------------------
-```
+   ```
             
-5. Run actual Apply command under `costBuddy/terraform` directory to deploy all the resources into AWS parent account. 
+6. Run actual Apply command under `costBuddy/terraform` directory to deploy all the resources into AWS parent account. 
 This step may take up to `5-10` mins.
 
-```bash
-python3 terraform_wrapper.py apply -var-file=input.tfvars
-```
+   ```bash
+   python3 terraform_wrapper.py apply -var-file=input.tfvars
+   ```
 
 The output will look like below
 
-```bash
-Expected output: It will ask for approval like below
+   ```bash
+    Expected output: It will ask for approval like below
         Do you want to perform these actions?
          Terraform will perform the actions described above.
         Only 'yes' will be accepted to approve.
         Enter a value:       
- ```
+   ```
 Please type “yes” and enter
 It provides the next steps to perform
 
-```bash
-Apply complete! Resources: 36 added, 0 changed, 0 destroyed.
+   ```bash
+   Apply complete! Resources: 36 added, 0 changed, 0 destroyed.
 
-Outputs:
+   Outputs:
 
-next_steps = 
-  Please run the following steps to trigger costBuddy.
-	1. Verify the readiness of metrics system by accessing Grafana UI: http://xx.xx.xx.xx/login or http://dashboard.costbuddy.intuit.com/login
-	2. aws  stepfunctions start-execution --state-machine-arn arn:aws:states:us-west-2:xxxxxxxxxx:stateMachine:costbuddy-state-function --region=us-west-2 --profile=<your aws profile>
-	3. aws lambda invoke --function-name arn:aws:lambda:us-west-2:xxxxxxxxxx:function:cost_buddy_budget  --region=us-west-2 --profile=<your aws profile> /tmp/lambda.log
+   next_steps = 
+     Please run the following steps to trigger costBuddy.
+	   1. Verify the readiness of metrics system by accessing Grafana UI: http://xx.xx.xx.xx/login or http://dashboard.costbuddy.intuit.com/login
+	   2. aws  stepfunctions start-execution --state-machine-arn arn:aws:states:us-west-2:xxxxxxxxxx:stateMachine:costbuddy-state-function --region=us-west-2 --profile=<your aws profile>
+	   3. aws lambda invoke --function-name arn:aws:lambda:us-west-2:xxxxxxxxxx:function:cost_buddy_budget  --region=us-west-2 --profile=<your aws profile> /tmp/lambda.log
 
-```
-6. Verify the readiness of the metrics system by following the 'Step 1' specified in the Terraform output. Live Grafana UI ensures the system ready to accept and visualize metrics.
+   ```
+7. It will take few minutes for the application to come online. Verify the readiness of the metrics system by following the 'Step 1' specified in the Terraform output. Live Grafana UI ensures the system ready to accept and visualize metrics.
 
-```bash
-terraform output
-```
+   ```bash
+   terraform output
+   ```
 >  1.Verify the readiness of metrics system by accessing Grafana UI: http://xx.xx.xx.xx/login or http://<www_domain_name>.<costbuddy_zone_name>/login.
 
 Grafana default Credentials: default credentials are  “admin/password”
    
-7. Run the next steps specified in the terraform output under `costBuddy/terraform` directory.
-```bash
-terraform output
-```
-8. execute step 2 `costbuddy-state-function` and 3 `cost_buddy_budget ` as given in the above step output, to see the data into Grafana.
+8. Run the next steps specified in the terraform output under `costBuddy/terraform` directory.
+   ```bash
+   terraform output
+   ```
+9. execute step 2 `costbuddy-state-function` and 3 `cost_buddy_budget ` as given in the above step output, to see the data into Grafana.
    
    
    Note : 
@@ -287,7 +309,7 @@ terraform output
 
 
 # Caution : 
-costBuddy will save all the terraform state files inside `costBuddy/terraform/terraform.tfstate.d/` directory. make sure that you save all the terraform state files in a safe place (in git or S3 location) as it will be needed next time when you wanna deploy/update costBuddy again in some accounts.
+costBuddy will save all the terraform state files inside `costBuddy/terraform/terraform.tfstate.d/` directory. Make sure that you save all the terraform state files in a safe place (in git or S3 location) as it will be needed next time when you wanna deploy/update costBuddy again in some accounts.
 
 
  
@@ -300,16 +322,21 @@ costBuddy will save all the terraform state files inside `costBuddy/terraform/te
 3. Switch to terraform directory.
     ```bash
     cd costBuddy/terraform/
+    terraform init
     ```
 
 4. Update the child account root access STS credentials in `~/.aws/credential` file or export your AWS keys as bash environment variables `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY`.
 
+   Refer the below AWS documentation to create user credentials.
+   https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html
+   https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
+   
    if not updated credentials in `~/.aws/credential` then chose below option
    ```bash
         export AWS_ACCESS_KEY_ID="XXXXXXXXXXXXXXXXX"
         export AWS_SECRET_ACCESS_KEY="XXXXXXXXXXXXXXXXX"
    ```
-    or 
+    **or* 
 
     if updated credentials in `~/.aws/credential` then chose below option
     ```bash
@@ -318,47 +345,45 @@ costBuddy will save all the terraform state files inside `costBuddy/terraform/te
 
 5. Run planner command under `costBuddy/terraform` directory.
 
-```bash
-
-python3 terraform_wrapper.py plan -var-file=input.tfvars
-```
+   ```bash
+   python3 terraform_wrapper.py plan -var-file=input.tfvars
+   ```
 Expected output :
 
-```bash
-This command will generate a preview of all the actions which terraform is going to execute.
-   Expected Output: This command will be giving output something like below
-            Plan: 2 to add, 0 to change, 0 to destroy.
-            ------------------------------------------------------------------------
-```
+   ```bash
+    This command will generate a preview of all the actions which terraform is going to execute.
+      Expected Output: This command will be giving output something like below
+               Plan: 2 to add, 0 to change, 0 to destroy.
+               ------------------------------------------------------------------------
+   ```
 5. Run actual Apply command under `costBuddy/terraform` directory to deploy all the resources into the AWS child account.
-```bash
-
-python3 terraform_wrapper.py apply -var-file=input.tfvars
-```
+   ```bash
+   python3 terraform_wrapper.py apply -var-file=input.tfvars
+   ```
 
 Expected output: It will ask for approval like below
-```bash
-        Do you want to perform these actions?
-         Terraform will perform the actions described above.
+   ```bash
+    Do you want to perform these actions?
+        Terraform will perform the actions described above.
         Only 'yes' will be accepted to approve.
         Enter a value: 
        
-```
+   ```
 >Type “yes” and enter
 
-5. This child account data will be visible in Grafana after the next `CloudWatch scheduler` run. but if you want to see the data immediately please execute step # `3, 5, 7, 8 ` from  `Parent Account Deployment`.
+5. This child account data will be visible in Grafana after the next `CloudWatch scheduler` run. but if you want to see the data immediately please execute step # `4, 6, 8, 9 ` from  `Parent Account Deployment`.
 
 
 
 
 ##  Adding a new child accounts into costBuddy : 
 1. Open `input.tfvars` from `costBuddy/terraform` directory and add child account as show below 
-```bash 
-account_ids = {
+   ```bash 
+   account_ids = {
                 "parent_account_id" : “1234xxxxxxx”,
                 "child_account_ids" : [“4567xxxxxxx”, “8901xxxxxxx” , “4583xxxxxxx” , “new_child_account_id” ]
             } 
-```
+   ```
 2. Open `costBoddy/src/conf/input/bills.xlsx` , and update new child account details and save it.
 Execute all the `steps` given in `Deployment for Child Account` and `Deployment for Parent Account` section.
 
@@ -384,25 +409,25 @@ Execute all the `steps` given in `Deployment for Child Account` and `Deployment 
 2. Run below command for destroying all the resources.
 go to `costBuddy/terraform` directory and execute below command.
 
-```bash
-python3 terraform_wrapper.py  destroy -var-file=input.tfvars
-```
+   ```bash
+   python3 terraform_wrapper.py  destroy -var-file=input.tfvars
+   ```
 The output will look like below
 
-```bash
-Plan: 0 to add, 0 to change, 36 to destroy.
+   ```bash
+   Plan: 0 to add, 0 to change, 36 to destroy.
 
-Do you really want to destroy all resources in workspace "5xxxxxxxx9"?
-  Terraform will destroy all your managed infrastructure, as shown above.
-  There is no undo. Only 'yes' will be accepted to confirm.
+   Do you really want to destroy all resources in workspace "5xxxxxxxx9"?
+     Terraform will destroy all your managed infrastructure, as shown above.
+     There is no undo. Only 'yes' will be accepted to confirm.
 
-  Enter a value:
- ```
+     Enter a value:
+    ```
 Type “yes” and enter to proceed.
 
-```bash
-destroy complete! Resources: 0 added, 0 changed, 36 destroyed.
-```
+   ```bash
+   destroy complete! Resources: 0 added, 0 changed, 36 destroyed.
+   ```
 
 Note   1) costBuddy takes around ~20+ mins to destroy all the resources in the parent account 
        2) costBuddy takes around ~2+ mins to destroy all the resources in each child account 
@@ -483,4 +508,15 @@ case 2: user not able to change/update/modify default dashboards in Grafana UI
 
       1. You can't change/update default dashboards.
       2. If you need to make changes, please clone new dashboards from the default dashboard JSON.
+
+case 3: ModuleNotFoundError: No module named ‘boto3’
+    Need to install boto3 in the system from where deployment is performed.
+    ```bash
+    python3.7 -mpip install boto3
+    ```
+case 4: Error: Error fetching Availability Zones: UnauthorizedOperation: You are not authorized to perform this operation.
+    The deploy user should be a power user with admin roles assigned.
+    Refer the below AWS documentation to create a user and generate Access Keys.
+    https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html
+    https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
 
