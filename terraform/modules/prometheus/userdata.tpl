@@ -41,7 +41,7 @@ if [[ ! -z $YUM_CMD ]]; then
 elif [[ ! -z $APT_GET_CMD ]]; then
   apt-get update -y && apt-get install -y docker.io curl unzip awscli
 fi
-aws s3 cp  s3://costbuddy-output-bucket-${parent_account}/artifacts/artifacts.zip /tmp/
+aws s3 cp  s3://${costbuddy_output_bucket}/artifacts/artifacts.zip /tmp/
 unzip /tmp/artifacts.zip -d /
 curl -L https://github.com/docker/compose/releases/download/${docker_compose_version}/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose

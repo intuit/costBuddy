@@ -42,6 +42,7 @@ data "template_file" "user_data" {
     parent_account         = var.parent_account
     docker_compose_version = var.docker_compose_version
     md5                    = aws_s3_bucket_object.costbuddy_artifacts_object[0].etag
+    costbuddy_output_bucket = var.costbuddy_output_bucket
   }
 }
 
