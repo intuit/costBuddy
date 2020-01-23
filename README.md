@@ -309,7 +309,7 @@ Grafana default Credentials: default credentials are  “admin/password”
 
 
 # Caution : 
-costBuddy will save all the terraform state files inside `costBuddy/terraform/terraform.tfstate.d/` directory. Make sure that you save all the terraform state files in a safe place (in git or S3 location) as it will be needed next time when you wanna deploy/update costBuddy again in some accounts.
+costBuddy will save all the terraform state files inside `costBuddy/terraform/terraform.tfstate.d/` directory. Make sure that you save all the terraform state files in a safe place (in git or S3 location) as it will be needed next time when you want to deploy/update costBuddy again in some accounts.
 
 
  
