@@ -1,6 +1,6 @@
-name: Python application
+name: costbuddy_code_test
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
