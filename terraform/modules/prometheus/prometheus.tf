@@ -9,7 +9,7 @@ locals {
 resource "aws_key_pair" "keypair" {
   count      = var.parent && var.key_pair == "" ? 1 : 0
   key_name   = "deployer-key"
-  public_key = "${file(var.public_key_path)}"
+  public_key = file(var.public_key_path)
 }
 
 # Get the subnet details including VPC id.
