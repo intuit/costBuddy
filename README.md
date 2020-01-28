@@ -30,6 +30,7 @@ Requirements
 
 - [Terraform](https://www.terraform.io/downloads.html) 0.12+
 - [Python](https://www.python.org/downloads) 3.7
+- [AWScli](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)
 
 Pre-requisites 
 ------------
@@ -72,11 +73,17 @@ The `input.tfvars` file (terraform input variables) is the configuration file of
 1. `account_ids`:  Provide one parent account ID and zero or more comma-separated child accounts from where the user wants to fetch AWS account cost.
 
 Example : 
->account_ids = {
-                "parent_account_id" : “1234xxxxxxx”,
-                "child_account_ids" : [“4567xxxxxxx”, “8901xxxxxxx” , “4583xxxxxxx”]
+>   1. if you have child accounts info then use example 
+           account_ids = {
+                "parent_account_id" : "1234xxxxxxx",
+                "child_account_ids" : ["4567xxxxxxx", "8901xxxxxxx" , "4583xxxxxxx"]
             } 
-            
+    
+     2. if you don't have any child accounts yet then use below example with child accounts array as empty.
+           account_ids = {
+                "parent_account_id" : "1234xxxxxxx",
+                "child_account_ids" : []
+            }         
 Note: 12 digit AWS Account number without '-'(hyphen).
 
 Parent account definition : 
@@ -92,7 +99,7 @@ Child accounts definition:
     https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html
 
 Example : 
-> key_pair = “” (in case user wants to use his/her default id_rsa.pub key)
+> key_pair = "" (in case user wants to use his/her default id_rsa.pub key)
 
 or
 > key_pair = abc (user should have this pem file to login to EC2 instance for troubleshooting purpose)
@@ -105,7 +112,7 @@ Example :
 4. `bastion_security_group`: **< optional >** In case if the access to the instance is restricted through a bastion host, provide the security group ID to be whitelisted in the EC2 instance. 
 
 Example:
->bastion_security_group = ["sg-abc”]
+>bastion_security_group = ["sg-abc"]
 5. `cidr_admin_whitelist`:  Accepts lists of CIDR in order to access Grafana and Prometheus UI. This CIDR range will be added in EC2 Security Group inbound rule for port 22 (SSH), 9091 (Prometheus gateway ),  (9090 (Prometheus UI), 80 (Grafana UI). This will have your public IP address or your organization’s Public IP address ranges.
 
 Use the following URL to get the public IP address of a system.
@@ -125,7 +132,7 @@ Example :
 6. `costbuddy_zone_name` :  Provide route53 valid existing zone. This zone is required to access grafana/prometheus UI. Incase of new hosted zone to be created, set `hosted_zone_name_exists` to `false`.
 
 Example : 
-> costbuddy_zone_name=“costbuddy.intuit.com”
+> costbuddy_zone_name="costbuddy.intuit.com"
 
 
 7. `hosted_zone_name_exists` : **(Default is false)** Does not create a new hosted zone when set to `true`, Incase of new hosted zone to be created, set to `false`.
@@ -134,7 +141,7 @@ Example :
 > hosted_zone_name_exists=false
 
 
-8. `www_domain_name` : Provide appropriate name to create “A” record for grafana/prometheus UI.
+8. `www_domain_name` : Provide appropriate name to create "A" record for grafana/prometheus UI.
 
 Example :
 > www_domain_name="dashboard"
@@ -143,7 +150,7 @@ Grafana UI will be accessible via this url `http://<www_domain_name>.<costbuddy_
 9. `public_subnet_id`: EC2 instance will be provisioned under this public subnet so that it can be accessible through Internet.
 
 Example :
-> public_subnet_id=“subnet-abc”
+> public_subnet_id="subnet-abc"
 
 10. `private_subnet_id`: Lambda functions will be deployed under private subnet so that lambda can use NAT g/w to access AWS resources like EC2, Cost Explore API, S3 etc. 
 
@@ -151,25 +158,25 @@ Example :
 > https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/
 
 Example :
->private_subnet_id=“subnet-xyz”
+>private_subnet_id="subnet-xyz"
 
 11. `prometheus_push_gw_endpoint`: If you already have a Prometheus g/w, then provide the hostname otherwise keep it empty, costBuddy deployment will create a new Prometheus g/w.
 
 Example : 
->prometheus_push_gw_endpoint=“”
+>prometheus_push_gw_endpoint=""
 
 12. `prometheus_push_gw_port`: If you already have a Prometheus g/w, then provide the port number otherwise keep it empty.
 
 Example : 
->prometheus_push_gw_port=“”
+>prometheus_push_gw_port=""
 
 13. `costbuddy_output_bucket`: A valid S3 bucket name, costBuddy will create S3 bucket with this name and the parent AWS account id appended.
 
     The bucket name can be between 3 and 63 characters long, and can contain only lower-case characters, numbers, periods, and dashes. Each label in the bucket name must start with a lowercase letter or number. The bucket name cannot contain underscores, end with a dash, have consecutive periods, or use dashes adjacent to periods.
 
 Example :
->costbuddy-output-bucket = “costbuddy-output-bucket”
-costBuddy will create S3 bucket  “costbuddy-output-bucket-<parent_account_id>” . This S3 bucket is used to store few configuration files of costBuddy as well as it will store output metrics that can be used in other services like QuickSight to generate dashboards.
+>costbuddy-output-bucket = "costbuddy-output-bucket"
+costBuddy will create S3 bucket  "costbuddy-output-bucket-<parent_account_id>" . This S3 bucket is used to store few configuration files of costBuddy as well as it will store output metrics that can be used in other services like QuickSight to generate dashboards.
 
 
 14. CostBuddy can run in Cost Exporor Mode(CE) or Cost Usage report Mode(CUR) (in V1, we are supporting only CE mode, V2 will have support for CUR mode).
@@ -278,7 +285,7 @@ This step may take `5-10` mins.
         Only 'yes' will be accepted to approve.
         Enter a value:       
    ```
-    Please type “yes” and enter
+    Please type "yes" and enter
     It provides the next steps to perform
 
    ```bash
@@ -293,21 +300,18 @@ This step may take `5-10` mins.
 	   3. aws lambda invoke --function-name arn:aws:lambda:us-west-2:xxxxxxxxxx:function:cost_buddy_budget  --region=us-west-2 --profile=<your aws profile> /tmp/lambda.log
 
    ```
-8. It will take few minutes for the application to come online. Verify the readiness of the metrics system by following the 'Step 1' specified in the Terraform output. Live Grafana UI ensures the system ready to accept and visualize metrics.
-
+8. Wait for 5-8 minutes before proceeding further. It will take few minutes for the application to come online. After 5-8 minutes, verify the readiness of the metrics system by following the 'Step 1' specified in the Terraform output. Load the Grafana URL in a browser. Live Grafana UI ensures the system is ready to accept and visualize metrics.
    ```bash
    terraform output
    ```
 >  1.Verify the readiness of metrics system by accessing Grafana UI: http://xx.xx.xx.xx/login or http://<www_domain_name>.<costbuddy_zone_name>/login.
+Grafana default Credentials: default credentials are  "admin/password"
 
-Grafana default Credentials: default credentials are  “admin/password”
-   
-9. Once Grafana dashbaord is up and running, run the next steps specified in the terraform output.
+9. Setup is complete here. Now costBuddy will run at 23:30PM UTC every day to generate data and populate Grafana. If you want to see the data immediatly, you can run costBuddy manually for one time to generate data by executing step 2 `costbuddy-state-function` and step 3 `cost_buddy_budget ` as given in the terraform output.
 
    ```bash
    terraform output
    ```
-10. Execute step 2 `costbuddy-state-function` and step 3 `cost_buddy_budget ` as given in the above step output, to see the data into Grafana.
    
    
     Note : 
@@ -382,7 +386,7 @@ Expected output: It will ask for approval like below
         Enter a value: 
        
    ```
->Type “yes” and enter
+>Type "yes" and enter
 
 5. Child account data will be visible in Grafana after the next `CloudWatch scheduler` run. But if you want to see the data immediately execute steps # `5, 7, 9, 10 ` from  `Parent Account Deployment`.
 
@@ -391,8 +395,8 @@ Expected output: It will ask for approval like below
 1. Open `input.tfvars` from `costBuddy/terraform` directory and add child account as show below 
    ```bash 
    account_ids = {
-                "parent_account_id" : “1234xxxxxxx”,
-                "child_account_ids" : [“4567xxxxxxx”, “8901xxxxxxx” , “4583xxxxxxx” , “new_child_account_id” ]
+                "parent_account_id" : "1234xxxxxxx",
+                "child_account_ids" : ["4567xxxxxxx", "8901xxxxxxx" , "4583xxxxxxx" , "new_child_account_id" ]
             } 
    ```
 2. Open `costBoddy/src/conf/input/bills.xlsx` , and update new child account details and save it.
@@ -440,7 +444,7 @@ The output will look like below
         Enter a value:
 ```
 
-Type “yes” and enter to proceed.
+Type "yes" and enter to proceed.
 
    ```bash
    destroy complete! Resources: 0 added, 0 changed, 36 destroyed.
