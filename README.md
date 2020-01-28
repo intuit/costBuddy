@@ -115,7 +115,7 @@ Example:
 >bastion_security_group = ["sg-abc"]
 5. `cidr_admin_whitelist`:  Accepts lists of CIDR in order to access Grafana and Prometheus UI. This CIDR range will be added in EC2 Security Group inbound rule for port 22 (SSH), 9091 (Prometheus gateway ),  (9090 (Prometheus UI), 80 (Grafana UI). This will have your public IP address or your organization’s Public IP address ranges.
 
-Use the following URL to get the public IP address of a system.
+Use the following URL to get the public IP address of your local PC/Laptop.
    ```bash 
    curl http://checkip.amazonaws.com
    ``` 
@@ -329,6 +329,10 @@ costBuddy will save all the terraform state files inside `costBuddy/terraform/te
 ## Child Account Deployment: 
 
 1. Add atleast one child account in input.tfvars under `account_ids > child_account_ids` section (please refer [Configuration](# Configuring Input.tfvars file) section step `1`).
+
+Example :
+
+       account_ids = { "parent_account_id" : “1234xxxxxxx”, "child_account_ids" : [“4567xxxxxxx”, “8901xxxxxxx” , “4583xxxxxxx”] }
 
 2. Add the child account information into the budget excel file: `costBoddy/src/conf/input/bills.xlsx`.
 
