@@ -115,7 +115,7 @@ Example:
 >bastion_security_group = ["sg-abc"]
 5. `cidr_admin_whitelist`:  Accepts lists of CIDR in order to access Grafana and Prometheus UI. This CIDR range will be added in EC2 Security Group inbound rule for port 22 (SSH), 9091 (Prometheus gateway ),  (9090 (Prometheus UI), 80 (Grafana UI). This will have your public IP address or your organization’s Public IP address ranges.
 
-Use the following URL to get the public IP address of a system.
+Use the following URL to get the public IP address of your local PC/Laptop.
    ```bash 
    curl http://checkip.amazonaws.com
    ``` 
