@@ -388,7 +388,7 @@ Expected output: It will ask for approval like below
    ```
 >Type "yes" and enter
 
-5. Child account data will be visible in Grafana after the next `CloudWatch scheduler` run. But if you want to see the data immediately execute steps # `5, 7, 9, 10 ` from  `Parent Account Deployment`.
+5. Child account data will be visible in Grafana after the next `CloudWatch scheduler` run. But if you want to see the data immediately execute steps # `5, 7, 9` from  `Parent Account Deployment`.
 
 
 ##  Adding a new child accounts into costBuddy : 
