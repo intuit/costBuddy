@@ -330,6 +330,10 @@ costBuddy will save all the terraform state files inside `costBuddy/terraform/te
 
 1. Add atleast one child account in input.tfvars under `account_ids > child_account_ids` section (please refer [Configuration](# Configuring Input.tfvars file) section step `1`).
 
+Example :
+
+       account_ids = { "parent_account_id" : “1234xxxxxxx”, "child_account_ids" : [“4567xxxxxxx”, “8901xxxxxxx” , “4583xxxxxxx”] }
+
 2. Add the child account information into the budget excel file: `costBoddy/src/conf/input/bills.xlsx`.
 
 3. Switch to terraform directory.
