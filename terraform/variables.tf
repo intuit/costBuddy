@@ -69,24 +69,31 @@ variable "docker_compose_version" {
 
 variable "public_subnet_id" {
   description = "Public Subnet ID"
-  type        = string
-  default     = ""
+  type        = list
+  default     = []
 }
 
 variable "private_subnet_id" {
   description = "Private Subnet ID"
-  type        = string
-  default     = ""
+  type        = list
+  default     = []
 }
 
 variable "tags" {
   description = "CostBuddy Reosurce Tagging"
   type        = map
+  default = {
+    "app" : "costBuddy"
+    "env" : "prd"
+    "team" : "CloudOps"
+    "costCenter" : "CloudEngg"
+  }
 }
 
 variable "costbuddy_zone_name" {
   description = "Monitoring server Domain Name"
   type        = string
+  default     = ""
 }
 
 variable "hosted_zone_name_exists" {
@@ -98,6 +105,7 @@ variable "hosted_zone_name_exists" {
 variable "cidr_admin_whitelist" {
   description = "CIDR ranges permitted to communicate with administrative endpoints"
   type        = list
+  default     = []
 }
 
 variable "bastion_admin_whitelist" {
@@ -115,7 +123,7 @@ variable "key_pair" {
 
 variable "costbuddy_output_bucket" {
   description = "S3 bucket name to create. Cost Buddy will write the result to, for QuickSight and other service to consume"
-  default     = "costbuddy-output-bucket"
+  default     = "costbuddy-s3-bucket"
 }
 
 variable "cur_input_data_s3_path" {
@@ -135,7 +143,7 @@ variable "cur_input_data_s3_monthly_pattern" {
 
 variable "www_domain_name" {
   description = "The A record to be created for the dashboard"
-  default     = "dashbaord"
+  default     = ""
 }
 
 variable "device_mount_path" {

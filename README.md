@@ -50,11 +50,15 @@ Pre-requisites
     python3.7 -mpip install boto3
    ```
 5. VPC needs to be present in the parent account where you want to set up costBuddy (You can use default VPC which comes with the AWS account by default)
-6. A Public(ingress) and a Private(egress) subnet should be available.
+6. A Public and a Private subnet should be available.
    
     Use below AWS documentation to create subnets if necessary.
 
     https://docs.aws.amazon.com/AmazonECS/latest/developerguide/create-public-private-vpc.html
+    
+    Note : if no private/public subnets provided then costBuddy will create new VPC, private and public subnets and also costBuddy will destroy these resources once 
+           user destroys costBuddy setup.   
+    
 7. costBuddy will create an EC2 instance during deployment, the user needs to create an AWS key_pair PEM file in order to login to EC2 instance for troubleshooting purpose.
    If the user doesn't create/provide key_pair PEM file, costBuddy will use the user's id_rsa.pub key by default.
 8. If the ssh access is restricted only through bastion/jump server, user should have the security group id of the bastion/jump EC2 instance.
@@ -67,134 +71,6 @@ Pre-requisites
     ```
 
 
-# Configuring Input.tfvars file
-The `input.tfvars` file (terraform input variables) is the configuration file of costBuddy. It accepts the following parameters.
-
-1. `account_ids`:  Provide one parent account ID and zero or more comma-separated child accounts from where the user wants to fetch AWS account cost.
-
-Example : 
->   1. if you have child accounts info then use example 
-           account_ids = {
-                "parent_account_id" : "1234xxxxxxx",
-                "child_account_ids" : ["4567xxxxxxx", "8901xxxxxxx" , "4583xxxxxxx"]
-            } 
-    
-     2. if you don't have any child accounts yet then use below example with child accounts array as empty.
-           account_ids = {
-                "parent_account_id" : "1234xxxxxxx",
-                "child_account_ids" : []
-            }         
-Note: 12 digit AWS Account number without '-'(hyphen).
-
-Parent account definition : 
-> Parent AWS account is the main account where all the resources of costBuddy will be deployed. This account will have the following resources post costBuddy setup completion.
-> Lambda, State function, EC2 instance ( It will have Prometheus gateway, Prometheus UI and Grafana docker containers), Cloudwatch Events Scheduler, Output S3 bucket and few IAM roles.
-
-Child accounts definition: 
-> Zero or more AWS accounts from where the user wants to fetch Cost information via costBuddy. These child accounts will have only one IAM role which will be assumed by the costBuddy Lambda. Leave it as an empty list([]) if there are no child accounts.
-
-2. `key_pair` : **< optional >** if empty then costBuddy will pickup user’s default id_rsa , otherwise provide AWS key_pair file name without .pem extension.
-
-    Refer the following AWS documentation to create a new Keypair.
-    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html
-
-Example : 
-> key_pair = "" (in case user wants to use his/her default id_rsa.pub key)
-
-or
-> key_pair = abc (user should have this pem file to login to EC2 instance for troubleshooting purpose)
-
-3. `region`: AWS region where CostBuddy will be deployed.
-
-Example : 
->region = "us-west-2"
-
-4. `bastion_security_group`: **< optional >** In case if the access to the instance is restricted through a bastion host, provide the security group ID to be whitelisted in the EC2 instance. 
-
-Example:
->bastion_security_group = ["sg-abc"]
-5. `cidr_admin_whitelist`:  Accepts lists of CIDR in order to access Grafana and Prometheus UI. This CIDR range will be added in EC2 Security Group inbound rule for port 22 (SSH), 9091 (Prometheus gateway ),  (9090 (Prometheus UI), 80 (Grafana UI). This will have your public IP address or your organization’s Public IP address ranges.
-
-Use the following URL to get the public IP address of your local PC/Laptop.
-   ```bash 
-   curl http://checkip.amazonaws.com
-   ``` 
-
-Access to costBuddy application will be restricted and only these IP ranges will be whitelisted.
-
-Example :
->cidr_admin_whitelist = [
-                        "x.x.x.x/32",
-                        "x.x.x.x/32"
-                    ]
-
-
-6. `costbuddy_zone_name` :  Provide route53 valid existing zone. This zone is required to access grafana/prometheus UI. Incase of new hosted zone to be created, set `hosted_zone_name_exists` to `false`.
-
-Example : 
-> costbuddy_zone_name="costbuddy.intuit.com"
-
-
-7. `hosted_zone_name_exists` : **(Default is false)** Does not create a new hosted zone when set to `true`, Incase of new hosted zone to be created, set to `false`.
-
-Example : 
-> hosted_zone_name_exists=false
-
-
-8. `www_domain_name` : Provide appropriate name to create "A" record for grafana/prometheus UI.
-
-Example :
-> www_domain_name="dashboard"
-Grafana UI will be accessible via this url `http://<www_domain_name>.<costbuddy_zone_name>`  = `http://dashboard.costbuddy.intuit.com` (DNS will not work until your Route53 hosted zone is resolvable by public DNS.)
-
-9. `public_subnet_id`: EC2 instance will be provisioned under this public subnet so that it can be accessible through Internet.
-
-Example :
-> public_subnet_id="subnet-abc"
-
-10. `private_subnet_id`: Lambda functions will be deployed under private subnet so that lambda can use NAT g/w to access AWS resources like EC2, Cost Explore API, S3 etc. 
-
-    Refer the below AWS document for more info.
-> https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/
-
-Example :
->private_subnet_id="subnet-xyz"
-
-11. `prometheus_push_gw_endpoint`: If you already have a Prometheus g/w, then provide the hostname otherwise keep it empty, costBuddy deployment will create a new Prometheus g/w.
-
-Example : 
->prometheus_push_gw_endpoint=""
-
-12. `prometheus_push_gw_port`: If you already have a Prometheus g/w, then provide the port number otherwise keep it empty.
-
-Example : 
->prometheus_push_gw_port=""
-
-13. `costbuddy_output_bucket`: A valid S3 bucket name, costBuddy will create S3 bucket with this name and the parent AWS account id appended.
-
-    The bucket name can be between 3 and 63 characters long, and can contain only lower-case characters, numbers, periods, and dashes. Each label in the bucket name must start with a lowercase letter or number. The bucket name cannot contain underscores, end with a dash, have consecutive periods, or use dashes adjacent to periods.
-
-Example :
->costbuddy-output-bucket = "costbuddy-output-bucket"
-costBuddy will create S3 bucket  "costbuddy-output-bucket-<parent_account_id>" . This S3 bucket is used to store few configuration files of costBuddy as well as it will store output metrics that can be used in other services like QuickSight to generate dashboards.
-
-
-14. CostBuddy can run in Cost Exporor Mode(CE) or Cost Usage report Mode(CUR) (in V1, we are supporting only CE mode, V2 will have support for CUR mode).
->costBuddy will be making AWS API calls AWS costExplorer to fetch the latest cost utilization and send the metrics to Prometheus gateway so that Grafana can fetch and visualize.
-
-Example: 
-> costbuddy_mode = "CE"
-
-15. `tags`: **< optional >** Parameter to add the tag into all the costBuddy resources to keep track.
-
-Example : 
->tags = {
-                "app" : "costBuddy"
-                "env" : "prd"
-                "team" : "CloudOps"
-                "costCenter" : "CloudEngg"
-    }
-
 # Deployment
 CostBuddy has two phases of deployments. Parent account deployment which deploys the necessary lambda applications and other related resources in parent AWS account and Child accounts deployments which create necessary IAM roles in the child accounts for the costBuddy lambda to access.
 
@@ -205,12 +81,24 @@ CostBuddy has two phases of deployments. Parent account deployment which deploys
    git clone https://github.com/intuit/costBuddy.git 
    ```
    
-2. Copy the example configuration file and modify the parameters. Refer [Configuration] (#Configuring Input.tfvars file) section above.
+2. `input.tfvars` is the configuration file for the deployment. Use the example files to create an `input.tfvars` file.
+
+    Copy the example configuration file and modify the parameters. Refer [Configuration] (#Configuring Input.tfvars file) section above.
+   
+   if user opt to use basic configuration file then run below command.
+   
    ```bash
-   cp costBuddy/terraform/input.tfvars.example costBuddy/terraform/input.tfvars
+   cp costBuddy/terraform/input.tfvars.basic.example costBuddy/terraform/input.tfvars
+   ```
+   **or**
+   
+   if user opt to use advance configuration file then run below command
+   
+   ```bash
+   cp costBuddy/terraform/input.tfvars.advanced.example costBuddy/terraform/input.tfvars
    ```
    
-3. Per Account monthly budget information needs to be updated with proper information of all accounts and owners details in the excel file: `costBuddy/src/conf/input/bills.xlsx`
+3. Per Account monthly budget information needs to be updated with proper information of all accounts and owners details in the excel file: `costBuddy/src/conf/input/bills.xlsx`. Open the file in a MS office/ Open office to modify/add the AWS account numbers and the corresponding quaterly allocated budget information for the AWS accounts. 
 
 4. Initialize Terraform. It will initialize all terraform modules/plugins.
    go to `costBuddy/terraform/` directory and run below command
@@ -289,7 +177,7 @@ This step may take `5-10` mins.
     It provides the next steps to perform
 
    ```bash
-   Apply complete! Resources: 36 added, 0 changed, 0 destroyed.
+   Apply complete! Resources: 36 added(in case of basic configuration) 45 added(in case of advanced configuration), 0 changed, 0 destroyed.
 
    Outputs:
 
@@ -300,19 +188,22 @@ This step may take `5-10` mins.
 	   3. aws lambda invoke --function-name arn:aws:lambda:us-west-2:xxxxxxxxxx:function:cost_buddy_budget  --region=us-west-2 --profile=<your aws profile> /tmp/lambda.log
 
    ```
-8. Wait for 5-8 minutes before proceeding further. It will take few minutes for the application to come online. After 5-8 minutes, verify the readiness of the metrics system by following the 'Step 1' specified in the Terraform output. Load the Grafana URL in a browser. Live Grafana UI ensures the system is ready to accept and visualize metrics.
+8. Wait for few minutes before proceeding further for the application to come online. 
+   Verify the readiness of the metrics system by following the 'Step 1' specified in the Terraform output. Load the Grafana URL in a browser. Live Grafana UI ensures the system is ready to accept and visualize metrics.
    ```bash
    terraform output
    ```
 >  1.Verify the readiness of metrics system by accessing Grafana UI: http://xx.xx.xx.xx/login or http://<www_domain_name>.<costbuddy_zone_name>/login.
-Grafana default Credentials: default credentials are  "admin/password"
+
+Grafana default Credentials: default credentials are  **"admin/password"**
 
 9. Setup is complete here. Now costBuddy will run at 23:30PM UTC every day to generate data and populate Grafana. If you want to see the data immediatly, you can run costBuddy manually for one time to generate data by executing step 2 `costbuddy-state-function` and step 3 `cost_buddy_budget ` as given in the terraform output.
 
    ```bash
    terraform output
    ```
-   
+    On sucessful execution of step 2 and step 3, Grafana dashbaords will render the graphs under "Grafana" >> "Home" >> "Dashboards"
+    
    
     Note : 
        1. Sometimes `cost_buddy_budget` lambda may fail to execute because EC2 instances provisioning is still in progress in the AWS account. You can re-run lambda again if it fails.
@@ -329,10 +220,6 @@ costBuddy will save all the terraform state files inside `costBuddy/terraform/te
 ## Child Account Deployment: 
 
 1. Add atleast one child account in input.tfvars under `account_ids > child_account_ids` section (please refer [Configuration](# Configuring Input.tfvars file) section step `1`).
-
-Example :
-
-       account_ids = { "parent_account_id" : “1234xxxxxxx”, "child_account_ids" : [“4567xxxxxxx”, “8901xxxxxxx” , “4583xxxxxxx”] }
 
 2. Add the child account information into the budget excel file: `costBoddy/src/conf/input/bills.xlsx`.
 
@@ -367,6 +254,7 @@ Example :
 5. Run planner command under `costBuddy/terraform` directory.
 
    ```bash
+   cd costBuddy/terraform/
    python3 terraform_wrapper.py plan -var-file=input.tfvars
    ```
 Expected output :
@@ -379,6 +267,7 @@ Expected output :
    ```
 5. Run actual Apply command under `costBuddy/terraform` directory to deploy all the resources into the AWS child account.
    ```bash
+   cd costBuddy/terraform/
    python3 terraform_wrapper.py apply -var-file=input.tfvars
    ```
 
@@ -392,7 +281,8 @@ Expected output: It will ask for approval like below
    ```
 >Type "yes" and enter
 
-5. Child account data will be visible in Grafana after the next `CloudWatch scheduler` run. But if you want to see the data immediately execute steps # `5, 7, 9` from  `Parent Account Deployment`.
+5. Child account data will be visible in Grafana after the next `CloudWatch scheduler` run. 
+   Execute steps # `5, 7, 9 ` from  `Parent Account Deployment`.
 
 
 ##  Adding a new child accounts into costBuddy : 
@@ -434,6 +324,7 @@ Execute all the `steps` given in `Deployment for Child Account` and `Deployment 
 go to `costBuddy/terraform` directory and execute below command.
 
    ```bash
+   cd costBuddy/terraform/
    python3 terraform_wrapper.py  destroy -var-file=input.tfvars
    ```
 The output will look like below
@@ -451,17 +342,188 @@ The output will look like below
 Type "yes" and enter to proceed.
 
    ```bash
-   destroy complete! Resources: 0 added, 0 changed, 36 destroyed.
+   destroy complete! Resources: 0 added, 0 changed, 36 destroyed(in case of basic configurations) ,
+                                                    45 destroyed (in c ase of advanced configurations).
    ```
 
-Note   1) costBuddy takes around ~20+ mins to destroy all the resources in the parent account 
+Note   
+
+       1) costBuddy takes around ~20+ mins to destroy all the resources in the parent account 
        2) costBuddy takes around ~2+ mins to destroy all the resources in each child account 
+       3) if destroy options fails because of timeout , then please rerun destroy command again. please check "troubshooting" section for 
+       more information.
         
-   Note : 
-       
-   Go through below link to get more info about AWS resource destroy process/duration etc
+       Go through below link to get more info about AWS resource destroy process/duration etc
        https://aws.amazon.com/blogs/compute/update-issue-affecting-hashicorp-terraform-resource-deletions-after-the-vpc-improvements-to-aws-lambda/
        
+
+# Configuring Input.tfvars file
+
+costBuddy comes with 2 flavors of input configuration file. User can choose one of the below configurations at a time to setup
+costBudduy.
+
+## Flavor 1. Basic configuration  "input.tfvars.basic.example" 
+The `input.tfvars.basic.example` file (terraform input variables) is the configuration file of costBuddy.It accepts the following parameters.
+
+1. `account_ids`:  Provide one parent account ID and zero or more comma-separated child accounts from where the user wants to fetch AWS account cost.
+
+Example : 
+>   
+     1. if you don't have any child accounts yet then use below example with child accounts array as empty.
+           account_ids = {
+                "parent_account_id" : "1234xxxxxxx",
+                "child_account_ids" : []
+               
+     2. if you have child accounts info then use example 
+           account_ids = {
+                "parent_account_id" : "1234xxxxxxx",
+                "child_account_ids" : ["4567xxxxxxx", "8901xxxxxxx" , "4583xxxxxxx"]
+            } 
+            
+            
+2. `region` : AWS Region to deploy CostBuddy
+
+ Example : 
+ >  
+      region = "us-west-2"
+
+
+
+**Note : costBuddy will create other required resources like VPC , private/public subnets , S3 bucket etc automatically.**
+
+
+## Flavor 2. Advance configuration  "input.tfvars.advanced.example" 
+
+The `input.tfvars` file (terraform input variables) is the configuration file of costBuddy. It accepts the following parameters.
+
+1. `account_ids`:  Provide one parent account ID and zero or more comma-separated child accounts from where the user wants to fetch AWS account cost.
+
+Example : 
+>   
+       1. if you don't have any child accounts yet then use below example with child accounts array as empty.
+           account_ids = {
+                "parent_account_id" : "1234xxxxxxx",
+                "child_account_ids" : []
+               
+       2. if you have child accounts info then use example 
+           account_ids = {
+                "parent_account_id" : "1234xxxxxxx",
+                "child_account_ids" : ["4567xxxxxxx", "8901xxxxxxx" , "4583xxxxxxx"]
+            } 
+            }         
+Note: 12 digit AWS Account number without '-'(hyphen).
+
+Parent account definition : 
+> Parent AWS account is the main account where all the resources of costBuddy will be deployed. This account will have the following resources post costBuddy setup completion.
+> Lambda, State function, EC2 instance ( It will have Prometheus gateway, Prometheus UI and Grafana docker containers), Cloudwatch Events Scheduler, Output S3 bucket and few IAM roles.
+
+Child accounts definition: 
+> Zero or more AWS accounts from where the user wants to fetch Cost information via costBuddy. These child accounts will have only one IAM role which will be assumed by the costBuddy Lambda. Leave it as an empty list([]) if there are no child accounts.
+
+2. `key_pair` : **< optional >** if empty then costBuddy will pickup user’s default id_rsa , otherwise provide AWS key_pair file name without .pem extension.
+
+    Refer the following AWS documentation to create a new Keypair.
+    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html
+
+Example : 
+> key_pair = "" (in case user wants to use his/her default id_rsa.pub key)
+
+or
+> key_pair = abc (user should have this pem file to login to EC2 instance for troubleshooting purpose)
+
+3. `region`: AWS region where CostBuddy will be deployed.
+
+Example : 
+>region = "us-west-2"
+
+4. `bastion_security_group`: **< optional >** In case if the access to the instance is restricted through a bastion host, provide the security group ID to be whitelisted in the EC2 instance. 
+
+Example:
+>bastion_security_group = ["sg-abc"]
+5. `cidr_admin_whitelist`:  Accepts lists of CIDR in order to access Grafana and Prometheus UI. This CIDR range will be added in EC2 Security Group inbound rule for port 22 (SSH), 9091 (Prometheus gateway ),  (9090 (Prometheus UI), 80 (Grafana UI). This will have your public IP address or your organization’s Public IP address ranges.
+
+Use the following URL to get the public IP address of a system.
+   ```bash 
+   curl http://checkip.amazonaws.com
+   ``` 
+
+Access to costBuddy application will be restricted and only these IP ranges will be whitelisted.
+
+Example :
+>cidr_admin_whitelist = [
+                        "x.x.x.x/32",
+                        "x.x.x.x/32"
+                    ]
+
+
+6. `costbuddy_zone_name` :  Provide route53 valid existing zone. This zone is required to access grafana/prometheus UI. Incase of new hosted zone to be created, set `hosted_zone_name_exists` to `false`.
+
+Example : 
+> costbuddy_zone_name="costbuddy.intuit.com"
+
+
+7. `hosted_zone_name_exists` : **(Default is false)** Does not create a new hosted zone when set to `true`, Incase of new hosted zone to be created, set to `false`.
+
+Example : 
+> hosted_zone_name_exists=false
+
+
+8. `www_domain_name` : Provide appropriate name to create "A" record for grafana/prometheus UI.
+
+Example :
+> www_domain_name="dashboard"
+Grafana UI will be accessible via this url `http://<www_domain_name>.<costbuddy_zone_name>`  = `http://dashboard.costbuddy.intuit.com` (DNS will not work until your Route53 hosted zone is resolvable by public DNS.)
+
+9. `public_subnet_id`: EC2 instance will be provisioned under this public subnet so that it can be accessible through Internet. Provide one subnet id in a list.
+
+Example :
+> public_subnet_id=["subnet-abc"]
+
+10. `private_subnet_id`: Lambda functions will be deployed under private subnet so that lambda can use NAT g/w to access AWS resources like EC2, Cost Explore API, S3 etc. Provide one subnet id in a list.
+
+    Refer the below AWS document for more info.
+> https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/
+
+Example :
+>private_subnet_id=["subnet-xyz"]
+
+11. `prometheus_push_gw_endpoint`: If you already have a Prometheus g/w, then provide the hostname otherwise keep it empty, costBuddy deployment will create a new Prometheus g/w.
+
+Example : 
+>prometheus_push_gw_endpoint=""
+
+12. `prometheus_push_gw_port`: If you already have a Prometheus g/w, then provide the port number otherwise keep it empty.
+
+Example : 
+>prometheus_push_gw_port=""
+
+13. `costbuddy_output_bucket`: A valid S3 bucket name, costBuddy will create S3 bucket with this name and the parent AWS account id appended.
+
+    The bucket name can be between 3 and 63 characters long, and can contain only lower-case characters, numbers, periods, and dashes. Each label in the bucket name must start with a lowercase letter or number. The bucket name cannot contain underscores, end with a dash, have consecutive periods, or use dashes adjacent to periods.
+
+Example :
+>costbuddy-output-bucket = "costbuddy-output-bucket"
+costBuddy will create S3 bucket  "costbuddy-output-bucket-<parent_account_id>" . This S3 bucket is used to store few configuration files of costBuddy as well as it will store output metrics that can be used in other services like QuickSight to generate dashboards.
+
+
+14. CostBuddy can run in Cost Exporor Mode(CE) or Cost Usage report Mode(CUR) (in V1, we are supporting only CE mode, V2 will have support for CUR mode).
+>costBuddy will be making AWS API calls AWS costExplorer to fetch the latest cost utilization and send the metrics to Prometheus gateway so that Grafana can fetch and visualize.
+
+Example: 
+> costbuddy_mode = "CE"
+
+15. `tags`: **< optional >** Parameter to add the tag into all the costBuddy resources to keep track.
+
+Example : 
+>tags = {
+                "app" : "costBuddy"
+                "env" : "prd"
+                "team" : "CloudOps"
+                "costCenter" : "CloudEngg"
+    }
+
+
+
 ## Creating grafana dashboard and alerts :
 
 1. Open grafana UI with below URL.

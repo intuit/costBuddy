@@ -1,4 +1,6 @@
 variable "ami_id" {}
+variable "vpc_id" {}
+variable "subnet_az" {}
 variable "region" {}
 variable "key_pair" {}
 variable "parent_account" {}

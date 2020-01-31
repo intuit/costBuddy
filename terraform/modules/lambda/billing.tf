@@ -343,5 +343,5 @@ resource "aws_lambda_permission" "allow_cloudwatch_cur" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.cost_buddy[0].function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.costbuddy_budget_lambda_cw_rule[0].arn
+  source_arn    = aws_cloudwatch_event_rule.trigger_costbuddy_function[0].arn
 }

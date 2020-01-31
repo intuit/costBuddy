@@ -5,6 +5,15 @@ locals {
   }
 }
 
+
+data "external" "getip" {
+  program = ["bash", "./modules/prometheus/get_ip.sh"]
+}
+
+locals {
+  cidr_admin_whitelist_all = concat(var.cidr_admin_whitelist, lookup(data.external.getip.result, "result", null) == null ? [] : list(lookup(data.external.getip.result, "result")))
+}
+
 # Uploads a new keypair
 resource "aws_key_pair" "keypair" {
   count      = var.parent && var.key_pair == "" ? 1 : 0
@@ -15,8 +24,9 @@ resource "aws_key_pair" "keypair" {
 # Get the subnet details including VPC id.
 data "aws_subnet" "ingress_subnet" {
   count = var.parent ? 1 : 0
-  id    = var.ingress_subnet_id == "" ? aws_subnet.main[0].id : var.ingress_subnet_id
+  id    = var.ingress_subnet_id
 }
+
 
 # Get the subnet details including VPC id.
 data "aws_subnet" "private_subnet" {
@@ -67,11 +77,12 @@ resource "aws_s3_bucket_object" "costbuddy_artifacts_object" {
 resource "aws_instance" "prometheus" {
   count = var.parent && var.prometheus_push_gw == "" ? 1 : 0
 
-  ami                  = var.ami_id
-  availability_zone    = data.aws_subnet.ingress_subnet[0].availability_zone
+  ami = var.ami_id
+  #availability_zone    = data.aws_subnet.ingress_subnet[0].availability_zone
+  availability_zone    = var.subnet_az
   instance_type        = "m5.xlarge"
   iam_instance_profile = aws_iam_instance_profile.costbuddy_profile[0].name
-  subnet_id            = var.ingress_subnet_id == "" ? aws_subnet.main[0].id : var.ingress_subnet_id
+  subnet_id            = var.ingress_subnet_id
   user_data_base64     = base64gzip(data.template_file.user_data[0].rendered)
   key_name             = var.key_pair == "" ? aws_key_pair.keypair[0].key_name : var.key_pair
   vpc_security_group_ids = [
@@ -87,61 +98,14 @@ resource "aws_instance" "prometheus" {
   tags = merge(local.common_tags, var.tags)
 }
 
-# Creates a VPC if no subnet ids are provided
-resource "aws_vpc" "main" {
-
-  count                = var.parent && var.ingress_subnet_id == "" ? 1 : 0
-  cidr_block           = "10.0.0.0/24"
-  enable_dns_hostnames = true
-  tags                 = merge(local.common_tags, var.tags)
-}
-
-# Creates Internet Gateway if no Subnets are provided
-resource "aws_internet_gateway" "main" {
-
-  count  = var.parent && var.ingress_subnet_id == "" ? 1 : 0
-  vpc_id = aws_vpc.main[0].id
-  tags   = merge(local.common_tags, var.tags)
-}
 
 data "aws_availability_zones" "available" {}
 
-# Creates subnet if no Subnets are provided
-resource "aws_subnet" "main" {
-  # Hardcoding the availability region since the ebs volume lifecycle is related to this
-  availability_zone       = data.aws_availability_zones.available.names[0]
-  count                   = var.parent && var.ingress_subnet_id == "" ? 1 : 0
-  vpc_id                  = aws_vpc.main[0].id
-  cidr_block              = aws_vpc.main[0].cidr_block
-  map_public_ip_on_launch = true
-  tags                    = merge(local.common_tags, var.tags)
-}
-
-# Creates Route table if no Subnets are provided
-resource "aws_route_table" "public" {
-
-  count  = var.parent && var.ingress_subnet_id == "" ? 1 : 0
-  vpc_id = aws_vpc.main[0].id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main[0].id
-  }
-  tags = merge(local.common_tags, var.tags)
-}
-
-# Creates Route table association rules if no Subnets are provided
-resource "aws_route_table_association" "public" {
-
-  count          = var.parent && var.ingress_subnet_id == "" ? 1 : 0
-  subnet_id      = aws_subnet.main[0].id
-  route_table_id = aws_route_table.public[0].id
-}
 
 # Security group rules for ssh access to prometheus and grafana servers
 resource "aws_security_group" "costbuddy_ssh_access" {
   count       = var.parent ? 1 : 0
-  vpc_id      = var.ingress_subnet_id == "" ? aws_vpc.main[0].id : data.aws_subnet.ingress_subnet[0].vpc_id
+  vpc_id      = var.vpc_id
   name        = "Costbuddy_SSH_Access"
   description = "Allow SSH access"
 
@@ -150,7 +114,7 @@ resource "aws_security_group" "costbuddy_ssh_access" {
     protocol    = "tcp"
     from_port   = 22
     to_port     = 22
-    cidr_blocks = var.cidr_admin_whitelist
+    cidr_blocks = local.cidr_admin_whitelist_all
   }
 
   # Whitelisting bastion security group for ssh access
@@ -170,7 +134,7 @@ resource "aws_security_group" "costbuddy_ssh_access" {
 # Security group for outbound security groups
 resource "aws_security_group" "costbuddy_http_outbound" {
   count       = var.parent ? 1 : 0
-  vpc_id      = var.ingress_subnet_id == "" ? aws_vpc.main[0].id : data.aws_subnet.ingress_subnet[0].vpc_id
+  vpc_id      = var.vpc_id
   name        = "Costbuddy_HTTP_outbound"
   description = "Allow HTTP connections out to the internet"
 
@@ -186,7 +150,7 @@ resource "aws_security_group" "costbuddy_http_outbound" {
 # Security group for external http traffic
 resource "aws_security_group" "costbuddy_external_http_traffic" {
   count       = var.parent ? 1 : 0
-  vpc_id      = var.ingress_subnet_id == "" ? aws_vpc.main[0].id : data.aws_subnet.ingress_subnet[0].vpc_id
+  vpc_id      = var.vpc_id
   name        = "costbuddy_external_http_traffic"
   description = "Allow external http traffic"
 
@@ -195,7 +159,7 @@ resource "aws_security_group" "costbuddy_external_http_traffic" {
     protocol    = "tcp"
     from_port   = 80
     to_port     = 80
-    cidr_blocks = var.cidr_admin_whitelist
+    cidr_blocks = local.cidr_admin_whitelist_all
   }
 
   # Whitelist 9090 port of prometheus to all admin ipaddresses
@@ -203,7 +167,7 @@ resource "aws_security_group" "costbuddy_external_http_traffic" {
     protocol    = "tcp"
     from_port   = 9090
     to_port     = 9090
-    cidr_blocks = var.cidr_admin_whitelist
+    cidr_blocks = local.cidr_admin_whitelist_all
   }
 
   # Whitelist 9091 port of prometheus gateway to all admin ipaddresses
@@ -211,7 +175,7 @@ resource "aws_security_group" "costbuddy_external_http_traffic" {
     protocol    = "tcp"
     from_port   = 9091
     to_port     = 9091
-    cidr_blocks = var.cidr_admin_whitelist
+    cidr_blocks = local.cidr_admin_whitelist_all
   }
 
   # Whitelist 9091 port of prometheus gateway to costbuddy lambda function
@@ -243,7 +207,7 @@ resource "aws_eip_association" "eip_assoc" {
 
 
 data "aws_route53_zone" "costbuddy" {
-  count = var.hosted_zone_name_exists ? 1 : 0
+  count = var.hosted_zone_name_exists && var.zone_name != "" ? 1 : 0
   name  = var.zone_name
 }
 
@@ -251,7 +215,7 @@ data "aws_route53_zone" "costbuddy" {
 # Creates a Route53 zone record to access grafana and prometheus
 resource "aws_route53_zone" "metrics" {
 
-  count = var.parent && var.hosted_zone_name_exists == false ? 1 : 0
+  count = var.parent && var.hosted_zone_name_exists == false && var.zone_name != "" ? 1 : 0
   name  = var.zone_name
 
   tags = merge(local.common_tags, var.tags)
@@ -260,7 +224,7 @@ resource "aws_route53_zone" "metrics" {
 # Creates a Route53 zone record to access grafana and prometheus
 resource "aws_route53_record" "prometheus_www" {
 
-  count   = var.parent ? 1 : 0
+  count   = var.parent && var.www_domain_name != "" ? 1 : 0
   zone_id = var.hosted_zone_name_exists ? data.aws_route53_zone.costbuddy[0].zone_id : aws_route53_zone.metrics[0].zone_id
   #  zone_id = aws_route53_zone.metrics[0].zone_id
   name    = var.www_domain_name
@@ -281,7 +245,8 @@ resource "aws_iam_instance_profile" "costbuddy_profile" {
 resource "aws_iam_role" "iam_for_monitoring" {
   count = var.parent ? 1 : 0
   name  = "costbuddy_role"
-
+  force_detach_policies = true
+  
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -325,7 +290,7 @@ EOF
 # Creates a EBS volume to store persistant data of prometheus server
 resource "aws_ebs_volume" "promethues-disk" {
   count             = var.parent ? 1 : 0
-  availability_zone = aws_instance.prometheus[0].availability_zone
+  availability_zone = var.subnet_az
   size              = "75"
 
   tags = merge(local.common_tags, var.tags)
