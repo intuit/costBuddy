@@ -1,6 +1,9 @@
 # CostBuddy
 ---
 
+![CostBuddy Dashboard](/images/costBuddy_dashboard.png)
+
+
 ## Objective :
 
 As organizations move to the cloud, budgeting, tracking, and optimizing dollar spending in the cloud are becoming a critical capability. This is universally true for all teams, and especially exemplified in Data Platform teams supporting multiple Analysts and Data Scientists as tenants. To overcome our challenges with cost accountability and budgeting as we transitioned to operate 100% in AWS, we have developed a methodical mechanism to manage cost.
