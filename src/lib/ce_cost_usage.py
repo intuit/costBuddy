@@ -157,7 +157,7 @@ class CostExplorerUsage:
                                                                   **labels)
         kwargs = {}
         data = self.client.get_cost_and_usage(TimePeriod={'Start': self.begin_of_month.isoformat(),
-                                                          'End': self.today.isoformat()},
+                                                          'End': self.last_day.isoformat()},
                                               Granularity='MONTHLY',
                                               Metrics=['UnblendedCost'],
                                               GroupBy=[{'Type': 'DIMENSION', 'Key': 'LINKED_ACCOUNT'}],
