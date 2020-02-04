@@ -29,6 +29,8 @@ class CostExplorerProjected:
         self.yesterday = self.util.preceding_day()
         self.today = self.util.day_of_month()
         self.last_day = self.util.last_day_of_month(self.today)
+        self.first_day_next_month = self.util.first_day_of_next_month()
+        self.next_day_of_month = self.util.next_day_of_month()
 
         self.prom_conf = OutputConfigParser().parse_output_config('prometheus')
         self.prom_endpoint = "%s:%s" % (self.prom_conf['gateway'], self.prom_conf['port'])
@@ -51,8 +53,8 @@ class CostExplorerProjected:
         try:
             response = self.client.get_cost_forecast(
                 TimePeriod={
-                    'Start': self.today.isoformat(),
-                    'End': self.last_day.isoformat()
+                    'Start': self.next_day_of_month.isoformat(),
+                    'End': self.first_day_next_month.isoformat()
                 },
                 Metric='UNBLENDED_COST',
                 Granularity='MONTHLY',
@@ -131,8 +133,8 @@ class CostExplorerProjected:
             try:
                 response = self.client.get_cost_forecast(
                     TimePeriod={
-                        'Start': self.today.isoformat(),
-                        'End': self.last_day.isoformat()
+                        'Start': self.next_day_of_month.isoformat(),
+                        'End': self.first_day_next_month.isoformat()
                     },
                     Metric='UNBLENDED_COST',
                     Granularity='MONTHLY',

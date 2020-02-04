@@ -9,6 +9,7 @@ import time
 import shutil
 import boto3
 import botocore.exceptions
+from dateutil.relativedelta import relativedelta
 
 
 class LOGGER:
@@ -54,10 +55,7 @@ class Utils:
             A datetime data type of current day
         """
         today = datetime.date.today()
-        days = today.day
-        if today.day > 25:
-            today += datetime.timedelta(7)
-        return today.replace(day=1) + datetime.timedelta(days=days)
+        return today
 
     @staticmethod
     def first_day_of_month():
@@ -69,6 +67,17 @@ class Utils:
         return datetime.date.today().replace(day=1)
 
     @staticmethod
+    def next_day_of_month():
+        """
+        Get current next day of the month
+        Returns:
+            A datetime data type of current day
+        """
+
+        today = datetime.date.today()
+        return today + datetime.timedelta(days=1)
+
+    @staticmethod
     def preceding_day():
         """
         Get the yesterday date
@@ -78,6 +87,15 @@ class Utils:
         """
         yesterday = datetime.date.today() - datetime.timedelta(days=1)
         return yesterday
+
+    @staticmethod
+    def first_day_of_next_month():
+        """
+        Get first day of the month
+        Returns:
+            Return a new date with day as first day of the month
+        """
+        return datetime.date.today().replace(day=1) + relativedelta(months=1)
 
     @staticmethod
     def last_day_of_month(any_day):
