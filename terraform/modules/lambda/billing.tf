@@ -148,7 +148,7 @@ data "template_file" "service_json" {
 resource "aws_iam_role_policy" "costbuddy_lambda_policy" {
   count = var.parent ? 1 : 0
   name  = "costbuddy_lambda_policy"
-  role  = "${aws_iam_role.iam_for_lambda[0].id}"
+  role  = aws_iam_role.iam_for_lambda[0].id
 
   policy = data.template_file.service_json.rendered
 
@@ -291,7 +291,7 @@ EOF
 # Creates a CloudWatch rule to trigger Sate function and Lambda
 resource "aws_cloudwatch_event_rule" "trigger_costbuddy_function" {
   count               = var.parent ? 1 : 0
-  name                = "costbuddy_trigger"
+  name                = "costbuddy_trigger_event"
   description         = "Cloudwatch rule to trigger costbuddy step function, trigger everyday at 23:00"
   schedule_expression = "cron(0 23 * * ? *)"
   tags                = merge(local.common_tags, var.tags)
@@ -315,7 +315,7 @@ resource "aws_cloudwatch_event_target" "attach_cw_rule_with_cur_lambda" {
 # Creates a CloudWatch rule to trigger Sate function and Lambda
 resource "aws_cloudwatch_event_rule" "costbuddy_budget_lambda_cw_rule" {
   count               = var.parent ? 1 : 0
-  name                = "costbuddy_budget_cw_trigger"
+  name                = "costbuddy_budget_trigger_event"
   description         = "Cloudwatch rule to trigger costbuddy budget lambda, trigger everyday at 23:00"
   schedule_expression = "cron(0 23 * * ? *)"
   tags                = merge(local.common_tags, var.tags)
@@ -328,3 +328,20 @@ resource "aws_cloudwatch_event_target" "costbuddy_attach_cw_rule_with_lambda" {
   rule  = aws_cloudwatch_event_rule.costbuddy_budget_lambda_cw_rule[0].name
 }
 
+resource "aws_lambda_permission" "allow_cloudwatch_budget" {
+  count         = var.parent ? 1 : 0
+  statement_id  = "AllowExecutionFromCloudWatchBudget"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.cost_buddy_budget[0].function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.costbuddy_budget_lambda_cw_rule[0].arn
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch_cur" {
+  count         = var.parent && upper(var.costbuddy_mode) == "CUR" ? 1 : 0
+  statement_id  = "AllowExecutionFromCloudWatchCostbuddy"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.cost_buddy[0].function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.trigger_costbuddy_function[0].arn
+}

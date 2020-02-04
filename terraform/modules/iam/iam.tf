@@ -7,7 +7,7 @@ locals {
 # Create a policy for CE cross account query
 resource "aws_iam_role_policy" "costbuddy_access_policy" {
   name = "costbuddy_access_policy"
-  role = "${aws_iam_role.costbuddy_access_role.id}"
+  role = aws_iam_role.costbuddy_access_role.id
 
   policy = <<EOF
 {

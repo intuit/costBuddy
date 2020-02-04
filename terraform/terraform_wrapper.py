@@ -14,8 +14,9 @@ def aws_account_id():
     try:
         client = boto3.client("sts")
         account_id = client.get_caller_identity()["Account"]
-    except:
+    except Exception as e:
         print("Error occurred while running AWS  query. Please check the credentials")
+        print("Error: {}".format(e))
         return None
     return account_id
 

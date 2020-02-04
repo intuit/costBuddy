@@ -1,0 +1,11 @@
+# Provide one parent account ID and multiple comma separated child accounts from where user wants to fetch AWS account cost. 
+# if no you don't have child account id(s) yet , keep "child_account_ids" as empty array.
+# Note: 12 digit AWS Account number without '-'(hyphen).
+
+account_ids = {
+  "parent_account_id" : "43XXXXXXXXX1",
+  "child_account_ids" : []
+}
+
+# AWS Region to deploy CostBuddy
+region = "us-west-2"

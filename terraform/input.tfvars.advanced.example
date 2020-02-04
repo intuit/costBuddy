@@ -1,7 +1,10 @@
 # Provide one parent account ID and multiple comma separated child accounts from where user wants to fetch AWS account cost.
+# if no you don't have child account id(s) yet , keep "child_account_ids" as empty array.
+# Note: 12 digit AWS Account number without '-'(hyphen).
+
 account_ids = {
-  "parent_account_id" : "2XXXXXXXX7",
-  "child_account_ids" : ["8XXXXXXXXX6","5XXXXXXXX3"]
+  "parent_account_id" : "2XXXXXXXXXX7",
+  "child_account_ids" : []
 }
 
 
@@ -28,11 +31,11 @@ hosted_zone_name_exists = false
 www_domain_name     = "dashboard"
 
 # this param is important to create EC2 instance under public subnet so that it can be access via IGW (Internet Gateway).
-public_subnet_id        = "subnet-abc"
+public_subnet_id        = ["subnet-abc"]
 
 # this param is important to create Lambda under private subnet so that lambda can use NAT g/w to access AWS resources like Ec2,Cost Explore API,S3 etc) , please go through below was document for more info.
 # https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/ 
-private_subnet_id = "subnet-xyz"
+private_subnet_id = ["subnet-xyz"]
 
 #  if user already has prometheus g/w running somewhere then please provide the hostname otherwise keep it empty , costBuddy deployment will created a new prometheus g/w automatically over 9091 port.
 prometheus_push_gw_endpoint = ""
@@ -43,7 +46,7 @@ prometheus_push_gw_port = ""
 
 # provide any unique S3 bucket name , costBuddy will created S3 bucket with this name with parent account appended at the end. Example :
 # costbuddy-output-bucket = “costbuddy-output-bucket” costBuddy will create S3 bucket “costbuddy-output-bucket-<parent_account_name>” . This S3 bucket is used to store few important files of costBuddy as well as it will store output metrics which can be used in WF or quick site to generate a dashboard same as we are generating in grafana.
-costbuddy_output_bucket = "costBuddy-s3-bucket"
+costbuddy_output_bucket = "costbuddy-output-bucket"
 
 # CostBuddy can run in Cost Exporor Mode(CE) or Cost Utilization report Mode(CUR) (in V1 , we are supporting only CE mode, V2 will have support for CUR mode).
 # costBuddy will be making AWS API calls costExplorer to fetch latest cost utilization and send the metrics to prometheus gateway so that grafana can show the view.

@@ -40,17 +40,85 @@ module "costbuddy_s3" {
 
 }
 
+# Creates a VPC
+module "vpc" {
+  source = "./modules/vpc"
+
+  parent = data.aws_caller_identity.current.account_id == lookup(var.account_ids, "parent_account_id") ? true : false
+  public_subnet_id  = var.public_subnet_id
+  private_subnet_id = var.private_subnet_id
+  cidr_block        = "192.168.0.0/24"
+
+  tags = var.tags
+
+}
+
+# Creates a Subnet
+module "public_subnet" {
+  source = "./modules/subnet"
+
+  parent = data.aws_caller_identity.current.account_id == lookup(var.account_ids, "parent_account_id") ? true : false
+  name              = "public"
+  subnet_id         = var.public_subnet_id
+  vpc_id            = module.vpc.vpc_id
+  subnet_cidr_block = ["192.168.0.0/25"]
+
+  tags = var.tags
+}
+
+# Creates a Subnet
+module "private_subnet" {
+  source = "./modules/subnet"
+
+  parent = data.aws_caller_identity.current.account_id == lookup(var.account_ids, "parent_account_id") ? true : false
+  name              = "private"
+  subnet_id         = var.private_subnet_id
+  vpc_id            = module.vpc.vpc_id
+  subnet_cidr_block = ["192.168.0.128/26"]
+
+  tags = var.tags
+}
+
+# Creates a InternetGateway and attaches the public subnets
+module "igw" {
+  source = "./modules/igw"
+
+  parent = data.aws_caller_identity.current.account_id == lookup(var.account_ids, "parent_account_id") ? true : false
+  input_subnet_id  = var.public_subnet_id
+  public_subnet_id = module.public_subnet.subnet_id
+  vpc_id           = module.vpc.vpc_id
+
+  tags = var.tags
+}
+
+# Creates a NATGateway and attaches the private subnets
+module "nat_gw" {
+  source = "./modules/nat"
+
+  parent = data.aws_caller_identity.current.account_id == lookup(var.account_ids, "parent_account_id") ? true : false
+  input_subnet_id   = var.private_subnet_id
+  public_subnet_id  = module.public_subnet.subnet_id
+  private_subnet_id = module.private_subnet.subnet_id
+  vpc_id            = module.vpc.vpc_id
+  mod_depends_on    = module.igw
+
+  tags = var.tags
+}
+
 # Deploys the lambda application
 module "costbuddy_lambda" {
   source = "./modules/lambda"
 
-  SciPy_layer             = var.SciPy_layer
-  region                  = var.region
-  parent                  = data.aws_caller_identity.current.account_id == lookup(var.account_ids, "parent_account_id") ? true : false
-  account_ids             = var.account_ids
-  ingress_subnet_id       = var.public_subnet_id
-  private_subnet_id       = var.private_subnet_id
-  ingress_vpc_id          = module.prometheus.prometheus_vpc_id
+  SciPy_layer = var.SciPy_layer
+  region      = var.region
+  parent      = data.aws_caller_identity.current.account_id == lookup(var.account_ids, "parent_account_id") ? true : false
+  account_ids = var.account_ids
+  # ingress_subnet_id       = var.public_subnet_id
+  # private_subnet_id       = var.private_subnet_id
+  ingress_subnet_id = module.public_subnet.subnet_id[0]
+  private_subnet_id = module.private_subnet.subnet_id[0]
+  # ingress_vpc_id          = module.prometheus.prometheus_vpc_id
+  ingress_vpc_id          = module.vpc.vpc_id
   costbuddy_mode          = var.costbuddy_mode
   cur_input_data_s3_path  = var.cur_input_data_s3_path
   costbuddy_output_bucket = "${var.costbuddy_output_bucket}-${data.aws_caller_identity.current.account_id}"
@@ -63,9 +131,13 @@ module "costbuddy_lambda" {
 module "prometheus" {
   source = "./modules/prometheus"
 
-  parent                 = data.aws_caller_identity.current.account_id == lookup(var.account_ids, "parent_account_id") ? true : false
-  region                 = var.region
-  private_subnet_id      = var.private_subnet_id
+  parent = data.aws_caller_identity.current.account_id == lookup(var.account_ids, "parent_account_id") ? true : false
+  region = var.region
+  # private_subnet_id      = var.private_subnet_id
+  private_subnet_id      = module.private_subnet.subnet_id[0]
+  ingress_subnet_id      = module.public_subnet.subnet_id[0]
+  subnet_az              = module.public_subnet.subnet_az
+  vpc_id                 = module.vpc.vpc_id
   bastion_security_group = var.bastion_security_group_id
   prometheus_push_gw     = var.prometheus_push_gw_endpoint
 
@@ -76,7 +148,7 @@ module "prometheus" {
   cidr_admin_whitelist    = var.cidr_admin_whitelist
   public_key_path         = var.public_key_path
   key_pair                = var.key_pair
-  ingress_subnet_id       = var.public_subnet_id
+  #  ingress_subnet_id       = var.public_subnet_id
   docker_compose_version  = var.docker_compose_version
   parent_account          = lookup(var.account_ids, "parent_account_id")
   costbuddy_output_bucket = "${var.costbuddy_output_bucket}-${data.aws_caller_identity.current.account_id}"
