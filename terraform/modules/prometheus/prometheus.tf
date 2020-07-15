@@ -215,7 +215,7 @@ data "aws_route53_zone" "costbuddy" {
 # Creates a Route53 zone record to access grafana and prometheus
 resource "aws_route53_zone" "metrics" {
 
-  count = var.parent && var.hosted_zone_name_exists == false && var.zone_name != "" && var.parent ? 1 : 0
+  count = var.parent && var.hosted_zone_name_exists == false && var.zone_name != "" ? 1 : 0
   name  = var.zone_name
 
   tags = merge(local.common_tags, var.tags)
@@ -224,7 +224,7 @@ resource "aws_route53_zone" "metrics" {
 # Creates a Route53 zone record to access grafana and prometheus
 resource "aws_route53_record" "prometheus_www" {
 
-  count   = var.parent && var.www_domain_name != "" && var.parent ? 1 : 0
+  count   = var.parent && var.www_domain_name != "" ? 1 : 0
   zone_id = var.hosted_zone_name_exists ? data.aws_route53_zone.costbuddy[0].zone_id : aws_route53_zone.metrics[0].zone_id
   #  zone_id = aws_route53_zone.metrics[0].zone_id
   name    = var.www_domain_name
