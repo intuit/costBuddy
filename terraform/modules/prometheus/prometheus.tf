@@ -80,7 +80,7 @@ resource "aws_instance" "prometheus" {
   ami = var.ami_id
   #availability_zone    = data.aws_subnet.ingress_subnet[0].availability_zone
   availability_zone    = var.subnet_az
-  instance_type        = "m5.xlarge"
+  instance_type        = "t3.large"
   iam_instance_profile = aws_iam_instance_profile.costbuddy_profile[0].name
   subnet_id            = var.ingress_subnet_id
   user_data_base64     = base64gzip(data.template_file.user_data[0].rendered)
@@ -280,7 +280,10 @@ resource "aws_iam_role_policy" "costbuddy_instance_policy" {
                 "s3:Get*",
                 "s3:List*"
             ],
-            "Resource": "*"
+            "Resource": [
+              "arn:aws:s3:::${aws_s3_bucket.out_bucket[0].id}",
+              "arn:aws:s3:::${aws_s3_bucket.out_bucket[0].id}/*"
+            ]
         }
     ]
 }
@@ -294,7 +297,7 @@ resource "aws_ebs_volume" "promethues-disk" {
   size              = "75"
 
   tags = merge(local.common_tags, var.tags)
-}
+
 
 # Attaches the EBS volume to the Prometheus server
 resource "aws_volume_attachment" "attach-prometheus-disk" {
