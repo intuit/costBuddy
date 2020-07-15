@@ -80,7 +80,7 @@ resource "aws_instance" "prometheus" {
   ami = var.ami_id
   #availability_zone    = data.aws_subnet.ingress_subnet[0].availability_zone
   availability_zone    = var.subnet_az
-  instance_type        = "m5.xlarge"
+  instance_type        = "t3.large"
   iam_instance_profile = aws_iam_instance_profile.costbuddy_profile[0].name
   subnet_id            = var.ingress_subnet_id
   user_data_base64     = base64gzip(data.template_file.user_data[0].rendered)
@@ -207,7 +207,7 @@ resource "aws_eip_association" "eip_assoc" {
 
 
 data "aws_route53_zone" "costbuddy" {
-  count = var.hosted_zone_name_exists && var.zone_name != "" ? 1 : 0
+  count = var.hosted_zone_name_exists && var.zone_name != "" && var.parent ? 1 : 0
   name  = var.zone_name
 }
 
@@ -215,7 +215,7 @@ data "aws_route53_zone" "costbuddy" {
 # Creates a Route53 zone record to access grafana and prometheus
 resource "aws_route53_zone" "metrics" {
 
-  count = var.parent && var.hosted_zone_name_exists == false && var.zone_name != "" ? 1 : 0
+  count = var.parent && var.hosted_zone_name_exists == false && var.zone_name != "" && var.parent ? 1 : 0
   name  = var.zone_name
 
   tags = merge(local.common_tags, var.tags)
@@ -224,7 +224,7 @@ resource "aws_route53_zone" "metrics" {
 # Creates a Route53 zone record to access grafana and prometheus
 resource "aws_route53_record" "prometheus_www" {
 
-  count   = var.parent && var.www_domain_name != "" ? 1 : 0
+  count   = var.parent && var.www_domain_name != "" && var.parent ? 1 : 0
   zone_id = var.hosted_zone_name_exists ? data.aws_route53_zone.costbuddy[0].zone_id : aws_route53_zone.metrics[0].zone_id
   #  zone_id = aws_route53_zone.metrics[0].zone_id
   name    = var.www_domain_name
