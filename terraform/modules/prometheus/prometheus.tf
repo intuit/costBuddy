@@ -280,7 +280,10 @@ resource "aws_iam_role_policy" "costbuddy_instance_policy" {
                 "s3:Get*",
                 "s3:List*"
             ],
-            "Resource": "*"
+            "Resource": [
+              "arn:aws:s3:::${aws_s3_bucket.out_bucket[0].id}",
+              "arn:aws:s3:::${aws_s3_bucket.out_bucket[0].id}/*"
+            ]
         }
     ]
 }
