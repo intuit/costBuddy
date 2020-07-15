@@ -297,6 +297,7 @@ resource "aws_ebs_volume" "promethues-disk" {
   size              = "75"
 
   tags = merge(local.common_tags, var.tags)
+}
 
 
 # Attaches the EBS volume to the Prometheus server
