@@ -762,7 +762,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(ce_aws_service_daily_spend{account_id=~'$account_id', month='$month', year='$year'}) by (aws_service, account_id)  -\n(sum(ce_aws_service_daily_spend{account_id=~'$account_id', year='$year', month='$month'}) by (aws_service, account_id)/100 * $discount)",
+          "expr": "sum(ce_aws_service_daily_spend{account_id=~'$account_id', month='$month', year='$year'}) by (aws_service)  -\n(sum(ce_aws_service_daily_spend{account_id=~'$account_id', year='$year', month='$month'}) by (aws_service)/100 * $discount)",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -865,7 +865,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(ce_aws_service_monthly_spend{account_id=~'$account_id', month='$month', year='$year'}) by (aws_service, account_id) - (sum(ce_aws_service_monthly_spend{account_id=~'$account_id', year='$year', month='$month'}) by (aws_service, account_id)/100 * $discount)",
+          "expr": "sum(ce_aws_service_monthly_spend{account_id=~'$account_id', month='$month', year='$year'}) by (aws_service) - (sum(ce_aws_service_monthly_spend{account_id=~'$account_id', year='$year', month='$month'}) by (aws_service)/100 * $discount)",
           "format": "time_series",
           "hide": false,
           "instant": false,
@@ -970,7 +970,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(ce_aws_service_monthly_forecast{account_id=~'$account_id', month='$month', year='$year'}) by (aws_service, account_id) - (sum(ce_aws_service_monthly_forecast{account_id=~'$account_id', year='$year', month='$month'}) by (aws_service, account_id)/100 * $discount)",
+          "expr": "sum(ce_aws_service_monthly_forecast{account_id=~'$account_id', month='$month', year='$year'}) by (aws_service) - (sum(ce_aws_service_monthly_forecast{account_id=~'$account_id', year='$year', month='$month'}) by (aws_service)/100 * $discount)",
           "format": "time_series",
           "hide": false,
           "instant": false,
