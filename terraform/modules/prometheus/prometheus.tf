@@ -207,7 +207,7 @@ resource "aws_eip_association" "eip_assoc" {
 
 
 data "aws_route53_zone" "costbuddy" {
-  count = var.hosted_zone_name_exists && var.zone_name != "" ? 1 : 0
+  count = var.hosted_zone_name_exists && var.zone_name != "" && var.parent ? 1 : 0
   name  = var.zone_name
 }
 
