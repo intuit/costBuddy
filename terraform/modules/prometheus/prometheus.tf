@@ -299,7 +299,6 @@ resource "aws_ebs_volume" "promethues-disk" {
   tags = merge(local.common_tags, var.tags)
 }
 
-
 # Attaches the EBS volume to the Prometheus server
 resource "aws_volume_attachment" "attach-prometheus-disk" {
   count        = var.parent ? 1 : 0
