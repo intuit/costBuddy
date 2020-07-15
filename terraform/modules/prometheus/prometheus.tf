@@ -80,7 +80,7 @@ resource "aws_instance" "prometheus" {
   ami = var.ami_id
   #availability_zone    = data.aws_subnet.ingress_subnet[0].availability_zone
   availability_zone    = var.subnet_az
-  instance_type        = "t3.large"
+  instance_type        = "m5.xlarge"
   iam_instance_profile = aws_iam_instance_profile.costbuddy_profile[0].name
   subnet_id            = var.ingress_subnet_id
   user_data_base64     = base64gzip(data.template_file.user_data[0].rendered)
