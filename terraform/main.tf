@@ -8,7 +8,11 @@ terraform {
     template = "~> 2.1"
     local    = "~> 1.2"
   }
-
+  backend "s3" {
+    bucket = var.costbuddy_output_bucket
+    key    = "terraform.tfstate"
+    region = var.region
+  }
 }
 
 # Create the IAM roles for the resources
